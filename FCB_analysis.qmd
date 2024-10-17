@@ -1,0 +1,509 @@
+---
+title: "The Barca Foundation's Future Megaproject: Diving into Africa's Disastrous Nuances and Promising Football Development"
+subtitle: |
+  | Project 2  
+  | AUTHOR: SID 541015192
+
+format: 
+    html:
+      embed-resources: true
+      code-fold: true
+      title-block-banner: true
+      toc: true
+      code-block-bg: true
+      code-block-border-left: "#78C2AD"
+      theme: minty
+      mainfont: spectral
+---
+
+# Client Bio and Recommendation
+
+::::: {style="display: flex;"}
+::: {style="flex: 43%;"}
+![](images/clipboard-3418331361.jpeg){fig-align="center" width="278"}
+:::
+
+::: {style="flex: 57%;"}
+**Mrs. Marta Segú -** *Director of the Barça Foundation*
+
+-- [*LinkedIn*](https://www.linkedin.com/in/marta-segu-estruch-8b94a427/?originalSubdomain=es) *![](Images/LinkedIn_logo_initials.png){width="12"} \| [Website](https://foundation.fcbarcelona.com/en/)![](Images/FC_Barcelona_(crest).svg.png){width="11" height="12"}* --
+
+The Barça Foundation is the charitable arm of Barcelona Football Club in Spain. They support struggling youths through sports, education, and health while identifying future football talents. 
+
+One of Mrs. Segú’s duties is to suggest geographical areas of action. Her goal is to pinpoint an area under crisis for maximizing both social good activities and talent intake chances.
+:::
+:::::
+
+**Recommendation**:
+
+Millions of Africans are affected by natural disasters every year. Data analysis and previous research suggest this crisis **positively** correlates with **rising emigration rates**. This trend, alongside **the ever-increasing impact of young African footballers** in Europe’s top leagues, presents an opportunity for Mrs. Segú to achieve both her goals: aid the youth and scout football prodigies. Therefore, **concentrating disaster relief efforts** **in Africa, particularly near the Horn of Africa,** aligns with the Barça Foundation’s vision.
+
+# Evidence
+
+The analysis focuses on three variables: 
+
+-   **People affected by natural disasters per million** from the Natural Disaster data. 
+-   **UNHCR Refugees by country of origin per 300,000** from Gapminder’s UNHCR Refugee data. 
+-   **Under-22 Non-European Footballers in Europe’s Big Five Leagues** from FBref 
+
+```{r, warning = FALSE, message = FALSE}
+# Loading the necessary libraries
+library(tidyverse)
+library(plotly)
+library(gganimate)
+library(sf)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(waffle)
+
+# Reading the datasets
+Af_all = read.csv("G:/YEAR 1/SEMESTER 1/DATA1001/Coding Stuff/Project 2/Exported Databases/merged_af_exp.csv")
+Af_c = read.csv("G:/YEAR 1/SEMESTER 1/DATA1001/Coding Stuff/Project 2/Exported Databases/af_c.csv")
+y_fb_noneu = read.csv("G:/YEAR 1/SEMESTER 1/DATA1001/Coding Stuff/Project 2/Exported Databases/continent_counts_df.csv")
+```
+
+## I. A "Disastrous" Upwards Trend
+
+```{r, warning = FALSE, message = FALSE}
+ggplot(Af_all) + 
+  # Drawing one line for the people affected by natural disaster data
+  geom_line(aes(x = Year, y = Dis_Total_Rounded, color = "Natural Disaster"), size = 1.1) +
+  # One for the refugee data
+  geom_line(aes(x = Year.1, 
+                y = Refugees_Rounded, 
+                color = "Refugees"), 
+            size = 1.1) +
+  # And another for the natural disaster projection
+  geom_segment(aes(x = 2010, 
+                   y = 16.8652, 
+                   xend = 2023, 
+                   yend = 21.1799, 
+                   color = "Predicted Natural Disaster Count"), 
+               linetype = "dashed", 
+               size = 1.1) +
+  scale_y_continuous(name = "Total People (millions)") +
+  labs(x = "Year", 
+       title = "A Positive Connection Between\nNatural Disasters and Outward Refugees in Africa (1960 to 2023)") +
+  theme_minimal() +
+  scale_color_manual(
+    name = "Legend",
+    values = c("Natural Disaster" = "red", "Refugees" = "blue", "Predicted Natural Disaster Count" = "red")
+  ) +
+  geom_label(
+    label = "Predicted Count",
+    x = 2019,
+    y = 15,
+    label.size = 0.35,
+    color = "white",
+    fill="#ff0000"
+  ) +
+  theme(
+    axis.title.y.left = element_text(size = 12),
+    plot.title = element_text(size = 12, face = "bold", hjust = 0.5, lineheight = 1.2), # Bold title
+    plot.title.position = "panel",
+    legend.position = "top",  # Keeps legend at the top
+    legend.title = element_text(size = 9),
+  )
+
+```
+
+A probable link has already been established between natural disasters and migration (Mbaye & Okara, 2023). The graph suggests Africa has indeed experienced a rise in the number of people affected by natural disasters and the outflow of refugees under UNHCR protection since 1960. Therefore, as more people are affected by natural disasters, the likelihood of migration may increase.  
+
+Despite the former not having concrete figures from 2010 onwards, we can safely assume that the number will continue to rise (CRED, 2019). 
+
+## II. A Continent Under Scrutiny
+
+```{r, warning = FALSE, message = FALSE}
+
+# Load Africa shapefile
+africa_map <- ne_countries(scale = "medium", continent = "Africa", returnclass = "sf")
+
+# Then, prepare the data for refugees
+df_refugees <- Af_c %>%
+  filter(Year == 2010) %>%
+  select(Country, X2011_Refugees_Rounded) %>%
+  mutate(Map_State = "Refugees (2011, in 300,000s)", Value = X2011_Refugees_Rounded)# Step 1: Prepare the data for both variables (Disasters and Refugees)
+# Prepare the data for disasters
+df_disasters <- Af_c %>%
+  filter(Year == 2010) %>%
+  select(Country, Dis_Total_Rounded) %>%
+  mutate(Map_State = "Natural Disasters (2010, in millions)", Value = Dis_Total_Rounded)
+
+
+
+df_combined <- bind_rows(df_disasters, df_refugees)
+
+# Join the combined data to the map using the country names
+africa_map <- africa_map %>%
+  left_join(df_combined, by = c("name_ciawf" = "Country"))
+
+# Creating the actual graph with colors
+af_viz = ggplot(africa_map) +
+  geom_sf(aes(fill = Value), color = "white") +  # Color countries by Value (disasters or refugees)
+  scale_fill_viridis_c(option = "C", na.value = "grey80", name = "Total") +  # Color scale
+  theme_minimal() +
+  labs(subtitle = "Map of {closest_state} in Africa",
+       title = "Continental-wide Effects of Natural Disaster-Driven Emigration",
+       fill = "Total", x = "Longitude", y = "Latitude") +
+  coord_sf(expand = F) +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 9),
+    axis.text = element_text(size = 10),
+    panel.background = element_rect(fill = "lightblue")
+  )
+
+# Animating the graph
+af_anim <- af_viz +
+  transition_states(Map_State, transition_length = 2, state_length = 1) +
+  enter_fade() + exit_fade()
+
+af_anim
+```
+
+This phenomenon is widespread throughout Africa, especially in areas near the Horn of Africa. Somalia, Kenya, Ethiopia, and Sudan were severely impacted by mass droughts in the early 2010s (IOM, 2011), affecting up to 6 million people and resulting in over 5 million refugees fleeing the region in 2011. 
+
+This is an opportunity for the Barça Foundation to leverage the global influence of the club for social good and fulfill their 2030 Sustainable Development Agenda. 
+
+## III. Rise Of A New African Generation
+
+Coincidentally, Africa’s a gold mine of rising football stars thanks to its growing academies, initiatives, and overseas collaborations (Rietiker-Wright, 2023). In the 2023/2024 season, over 50% of non-European under-22s in Big Five European leagues (minimum 800 minutes played) are African. 
+
+```{r, warning = FALSE, message = FALSE}
+waf = ggplot(y_fb_noneu, aes(fill = Continent, values = Player.Count)) +
+  geom_waffle(n_rows = 9, size = 0.5, color = "white",flip = T) +
+  labs(title = "Africa's Dominance in Young, Tactically-Significant Football Talent",
+       subtitle = "During the 2023/2024 season, over 50% of non-European U22s who played more than 800 minutes were African",
+       fill = "Continent of Origin") +
+  scale_fill_brewer(palette = "Dark2",
+                    labels = c("Africa","Asia","N.America","S.America"))+
+  coord_equal() +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 9)
+  )
+
+waf
+```
+
+Additionally, the naturalization of African refugees is common, leading immigration hubs such as France and Spain to recruit talented individuals to play for their national teams (Onwumechili, 2018). 
+
+Exploring the African football scene will massively benefit **both** the Barça Foundation and its parent club. 
+
+## IV. Hypothesis Testing
+
+To test whether Africans so-called “dominate” the European football’s youth scene, a proportion test was conducted. 
+
+-   *p*-value = 3.245 \* 10^-11^ (or 0.0000000000325)
+
+-   *p*-value \< 0.05 (a.k.a [⍺-value]{.underline} or [significance value]{.underline})
+
+The key figure is the p-value, which falls significantly lower than the threshold of 0.05. This supports the idea that young African footballers indeed have a larger presence compared to their non-European counterparts.  
+
+## V. Limitations
+
+Since the report may contain limitations, Mrs. Segú should exercise caution when making strategic decisions based on its findings.  
+
+Nonetheless, the foundation should heavily consider boosting the relief support in Africa as many refugees can still benefit from their work. 
+
+# Appendix: Defense of Approach
+
+## I. Client Choice
+
+The Barça Foundation is the only example of a well-managed philanthropical branch of a sports club. Due to an economic downturn, however, the foundation needs a novel idea to expand globally.
+
+Biases may exist due to Spain’s immigration laws.
+
+## II. Statistical Analysis
+
+::: panel-tabset
+## Data Cleaning
+
+Used Python since R’s cleaning is limited.
+
+```{python}
+#| echo: true
+#| eval: false
+
+# DATA CLEANING FOR THE AFRICAN REFUGEES AND NATURAL DISASTER DATA
+
+import pandas as pd
+import numpy as np
+
+nd_df = pd.read_csv("G:/YEAR 1/SEMESTER 1/DATA1001/Coding Stuff/Project 2/Big Databases/natural-disasters.csv")
+unhcr_reg_df = pd.read_csv("G:/YEAR 1/SEMESTER 1/DATA1001/Coding Stuff/Project 2/Big Databases/unhcr_refg_from.csv")
+
+# Renaming columns
+nd_list = ["Dr","Eq",'Dis','V','Fl','Mm','Sto','Ls','Fog','Wf','ExT','GLO']
+cats = ['Ded','Inj','Aff','Hom','Total','Recon','InsdDmg','TotEconDmg','Ded%','Inj%','Aff/100k','Hom%','Tot/100k']
+len(nd_list)*len(cats)
+
+# General data cleaning
+nd_columns = ['Country','Year'] + [f"{nd}_{cat}" for nd in nd_list for cat in cats] + [f"{nd}_TotEcoGDP" for nd in ['Dis','Dr','Eq','ExT','Fl','Ls','Mm','Sto','V']]
+nd_df.columns.values[0:167] = nd_columns
+nd_df.drop(columns=nd_df.columns[167:],inplace=True)
+nd_df.dropna(axis=1,how="all",inplace=True)
+nd_df.drop_duplicates(subset=["Country","Year"],inplace=True)
+
+# Selecing data only from Africa (the continent)
+af_nd_df = nd_df[(nd_df["Country"] == "Africa") & (nd_df["Year"]>=1960)][['Country','Year','Dis_Aff','Dis_Ded','Dis_Inj','Dis_Hom','Dis_Total','Dis_Recon','Dis_InsdDmg','Dis_TotEconDmg','Dis_Ded%','Dis_Inj%','Dis_Aff/100k']]
+# Merging the 2 databases and creating 2 new columns as data rounded (for convenience's sake)
+merged_af = pd.concat([af_nd_df.reset_index(),af_unhcr_reg_yearly],axis=1)
+merged_af.drop(columns="index",inplace=True)
+merged_af["Dis_Total_Rounded"] = merged_af["Dis_Total"].apply(lambda x: round(x/1000000,4))
+merged_af["Refugees_Rounded"] = merged_af["Refugees"].apply(lambda x: round(x/1000000,4))
+
+# Renaming the African countries to properly graph the map
+african_countries = [
+    "Algeria", "Angola", "Benin", "Botswana", "Burkina Faso", "Burundi",
+    "Cape Verde", "Cameroon", "Central African Republic", "Chad", "Comoros",
+    'Congo, Dem. Rep.','Democratic Republic of Congo','Congo, Rep.',"Congo", "Djibouti",
+    "Egypt", "Equatorial Guinea", "Eritrea", "Eswatini", "Ethiopia",
+    "Gabon", "Gambia", "Ghana", "Guinea", "Guinea-Bissau", "Cote d'Ivoire",
+    "Kenya", "Lesotho", "Liberia", "Libya", "Madagascar", "Malawi", "Mali",
+    "Mauritania", "Mauritius", "Morocco", "Mozambique", "Namibia", "Niger",
+    "Nigeria", "Rwanda", "Sao Tome and Principe", "Senegal", "Seychelles",
+    "Sierra Leone", "Somalia", "South Africa", "South Sudan", "Sudan", "Tanzania",
+    "Togo", "Tunisia", "Uganda", "Zambia", "Zimbabwe"
+]
+
+# A function to convert the data in the refugees database
+def big_num_converter(num):
+    if str(num)[-1] == "M":
+        return float(num.replace("M",""))*1000000
+    elif str(num)[-1] == "k":
+        return float(num.replace("k",""))*1000
+    else:
+        return float(num)
+
+for col in unhcr_reg_df.columns[1:]:    
+    unhcr_reg_df[col] = unhcr_reg_df[col].apply(big_num_converter)
+
+unhcr_reg_df = unhcr_reg_df.dropna(axis=1,how="all")
+
+# Creaing the 2011 refugees data columnn
+af_c_unhcr_reg_df = unhcr_reg_df[unhcr_reg_df["country"].isin(african_countries)]
+af_c_unhcr_reg_df = af_c_unhcr_reg_df[af_c_unhcr_reg_df.columns[0:62:61]].fillna(0)
+af_c_unhcr_reg_df.columns = ["Country","2011 Refugees"]
+
+af_c_nd_df = nd_df[nd_df["Country"].isin(african_countries)][['Country','Year','Dis_Aff','Dis_Ded','Dis_Inj','Dis_Hom','Dis_Total','Dis_Recon','Dis_InsdDmg','Dis_TotEconDmg','Dis_Ded%','Dis_Inj%','Dis_Aff/100k']]
+af_c = af_c_nd_df.merge(af_c_unhcr_reg_df,left_on=["Country"],right_on=["Country"],how="left")
+af_c["Dis_Total_Rounded"] = af_c["Dis_Total"].apply(lambda x: round(x/1000000,4))
+af_c["2011_Refugees_Rounded"] = af_c["2011 Refugees"].apply(lambda x: round(x/300000,4)) 
+# Dictionary mapping current country names to CIAWF names
+ciawf_names = {
+    "Cape Verde": "Cabo Verde",
+    "Congo, Dem. Rep.": "Congo, Democratic Republic of the",
+    "Democratic Republic of Congo": "Congo, Democratic Republic of the",
+    "Congo, Rep.": "Congo, Republic of the",
+    "Congo": "Congo, Republic of the",
+    "Eswatini": "eSwatini",
+    "Gambia": "Gambia, The",
+    "Cote d'Ivoire": "Cote D'ivoire",
+    "Sao Tome and Principe": "São Tomé and Principe",
+}
+# Apply the mapping to the Country column
+af_c['Country'] = af_c['Country'].map(ciawf_names)
+
+
+merged_af.to_csv("merged_af_exp.csv", index=False)
+af_unhcr_reg_yearly.to_csv("af_unhcr_reg_yearly.csv", index=False)
+
+af_c.to_csv("af_c_new.csv", index=False)
+
+```
+
+```{python}
+#| echo: true
+#| eval: false
+
+# DATA CLEANING FOR THE FOOTBALLERS' DATABASE
+
+from bs4 import BeautifulSoup
+import requests
+import pandas as pd
+from functools import reduce
+
+# A function to extract data from FBRef
+def get_data(data_url):
+    data_url = str(data_url)
+    data_page = requests.get(data_url)
+    data_soup = BeautifulSoup(data_page.text, "html")
+
+    data_table = data_soup.find("table", class_="min_width sortable stats_table min_width shade_zero")
+    data_unfilt_cols = data_table.find_all("th")
+
+    front,back = 0,0
+    for index, header in enumerate(data_unfilt_cols):
+        if header.get_text() == "Player":
+            front = index
+        if header.get_text() == "Matches":
+            back = index + 1
+        if front and back:
+            break
+    
+    data_cols = [title.text.strip() for title in data_unfilt_cols][front:back] 
+    data_df = pd.DataFrame(columns=data_cols)
+
+    data_col_data_draft = data_table.find_all("tr")
+    data_col_data = []
+    i = 2
+    while i < len(data_col_data_draft):
+        data_col_data.extend(data_col_data_draft[i:i+25])
+        i += 25 + 1
+    for data_row in data_col_data:
+        data_unfil_row = data_row.find_all("td") 
+        data_rows = [title.text.strip() for title in data_unfil_row] 
+        data_length = len(data_df)
+        data_df.loc[data_length] = data_rows
+
+
+    data_numeric_cols = data_df.columns[5:len(data_df.columns)-1]
+    for col in data_numeric_cols:
+        if col == "Born":
+            data_df[col] = pd.to_datetime(data_df[col],format="%Y").dt.year
+        else:
+            data_df[col] = data_df[col].apply(pd.to_numeric)
+            data_df[col] = data_df[col].fillna(0)
+
+    data_df.drop(columns="Matches", inplace=True)
+
+    data_df["Nation"] = data_df["Nation"].apply(lambda nation: nation.split()[1] if isinstance(nation, str) and len(nation.split()) > 0 else None)
+    data_df["Comp"] = data_df["Comp"].apply(lambda comp: " ".join(comp.split()[1:]) if isinstance(comp, str) and len(comp.split()) > 0 else None)
+
+    data_df.reset_index(drop=True, inplace=True)
+
+    return data_df
+  
+def_df = get_data("https://fbref.com/en/comps/Big5/2023-2024/defense/players/2023-2024-Big-5-European-Leagues-Stats")
+# Renaming the columns
+def_df.columns = ["Player", "Nation", "Pos", "Squad",'Comp', "Age", "Born", "90s", 
+                  "D_Tkl", "D_TklW", "Tkl_Def 3rd", "Tkl_Mid 3rd", "Tkl_Att 3rd", 
+                  "Chal_Tkl", "Chal_Att", "Chal_Tkl%", "Chal_Lost", 
+                  "Blocks", "B_Sh", "B_Pass", "Int", "Tkl+Int", "Clr", "Err"]
+
+df_final = get_data("https://fbref.com/en/comps/Big5/2023-2024/gca/players/2023-2024-Big-5-European-Leagues-Stats")
+# Filtering
+non_eu_youngsters = df_final[(~df_final["Nation"].isin(EU)) & (df_final["Age"]<22) & (df_final["90s"]*90>800)]
+# COunting the number of satisfactory players per continent and create a dataframe from that
+continent_counts = {
+    'AF': non_eu_youngsters[non_eu_youngsters["Nation"].isin(AF)].shape[0],
+    'AS': non_eu_youngsters[non_eu_youngsters["Nation"].isin(AS)].shape[0],
+    'N_A': non_eu_youngsters[non_eu_youngsters["Nation"].isin(N_A)].shape[0],
+    'OC': non_eu_youngsters[non_eu_youngsters["Nation"].isin(OC)].shape[0],
+    'SA': non_eu_youngsters[non_eu_youngsters["Nation"].isin(SA)].shape[0]
+}
+continent_counts_df = pd.DataFrame(list(continent_counts.items()), columns=['Continent', 'Player Count'])
+
+continent_counts_df.to_csv("continent_counts_df.csv")
+```
+
+## Hypothesis Testing
+
+### 1. Hypotheses
+
+Theoretically, the proportion of young players from Africa matches other continents’ (20%). 
+
+*H~0~:* **20%** of impactful, non-European youngsters in Europe’s Big Five are African. 
+
+*H~1~:* **More than 20%** of impactful, non-European youngsters in Europe’s Big Five are African. 
+
+### 2. Assumptions
+
+-   **Database Accuracy:** All footballers’ statistics are correct. 
+-   **Independence:** Players’ inclusion should be independent of others. 
+
+### 3. Test Statistics & p-values
+
+```{r, warning = FALSE, message = FALSE}
+Af_count = y_fb_noneu %>% filter(Continent == "AF") %>% pull(Player.Count)
+All_count = y_fb_noneu %>% pull(Player.Count) %>% sum()
+
+
+ts = ((Af_count) - 0.2*All_count)/sqrt(All_count*0.2*(1-0.2))
+sprintf("Test statistic: %f",ts)
+```
+
+```{r, warning = FALSE, message = FALSE}
+prop.test(Af_count,All_count,0.2, alt = "greater", correct = F)
+```
+
+### 4. Conclusion: Reject *H~0~*
+
+## Linear Modelling
+
+Linear modeling provides a predictive equation for estimating people affected by natural disasters.
+
+```{r, warning = FALSE, message = FALSE}
+ND_lm = lm(Dis_Total_Rounded ~ Year, data = Af_all)
+ND_lm
+```
+
+$$
+y = 0.3319x - 649.6215
+$$
+
+Linear modeling also shows a strong positive correlation between year and affected population.
+
+```{r, warning = FALSE, message = FALSE}
+cor(Af_all$Dis_Total_Rounded,Af_all$Refugees_Rounded, use = "complete.obs")
+```
+
+## Player Selection Criteria
+
+-   “U22s”: Reflects Barcelona’s youth visions. 
+-   “Big Five Leagues”: Measures worldwide reputation. 
+-   “Non-European": Over-representation (Europeans) exclusion.  
+-   “Minimum 800 Minutes Played”: Measures impact. 
+
+These criteria filter young, tactically-influential, non-European from elite European clubs. 
+:::
+
+## III. Limitations
+
+-   Natural disasters’ data is sparse (1 datapoint/10 years).  
+
+-   The Natural Disaster database only covers up to 2010.  
+
+-   Some countries/territories cannot provide data. 
+
+# Ethics Statement
+
+### Shared Professional Values: Respect
+
+-   The data used to produce this project excluded countries or players who are unable to provide data to respect their privacy, avoiding potential breach of privacy policy.
+
+### Maintaining Confidence in Statistics
+
+-   Provided concrete figures, realistic hypotheses, and listed possible limitations of the analysis to properly and truthfully inform the readers of the research result.
+
+-   Cleaned data to exclude the outliers or irrelevant values, unify data and improve coherence.
+
+-   Acknowledged the limitations.
+
+-   Highlighted areas for possible improvements, aiding future research.
+
+# Acknowledgements
+
+| Name | Type of Resource | URL/Source |
+|----|----|----|
+| Topic 4 & 8 Extensions | Ed Lessons | <https://edstem.org/au/courses/16787/lessons/> |
+| *Building a nice legend with R and ggplot2* | Blog/Post | <https://r-graph-gallery.com/239-custom-layout-legend-ggplot2.html> |
+| *Create your own discrete scale* | Documentation | <https://ggplot2.tidyverse.org/reference/scale_manual.html> |
+| *Create maps using the sf package in R programming* | Youtube Video | <https://www.youtube.com/watch?v=F0ZRYo4SUb8> |
+| *Waffle chart (square pie) in ggplot2* | Documentation | <https://r-charts.com/part-whole/waffle-chart-ggplot2/> |
+| *Amazon Web Scraping Using Python* | Youtube Video | <https://www.youtube.com/watch?v=HiOtQMcI5wg> |
+| Grammarly | Spell/Grammar Checker | <https://app.grammarly.com> |
+
+# Reference
+
+Centre for Research on the Epidemiology of Disasters (CRED). (2019, November). Disasters in Africa: 20 Year Review (2000-2019\*). CRED Crunch, (56), 2. <https://drmims.sadc.int/sites/default/files/document/2020-03/2019_SADC_CRED_USAID_UCLouvain_Disasters_Africa_20yearreview.pdf> 
+
+International Organization for Migration (IOM). (2011, July 18). Drought Related Migration on the Increase in the Horn of Africa. <https://www.iom.int/news/drought-related-migration-increase-horn-africa> 
+
+Onwumechili, C. (2018, July 20). African countries are losing out on their football talent. They need to figure out why. The Conversation. Retrieved October 9, 2024, from <https://theconversation.com/african-countries-are-losing-out-on-their-football-talent-they-need-to-figure-out-why-100039> 
+
+Rietiker, J. (2023, November 2). Football’s Next Generation: The African Talent Factory \| by Jamie Rietiker-Wright. Medium. [https://medium.com/\@jamie72155/footballs-next-generation-the-african-talent-factory-1549316aecaa](https://medium.com/@jamie72155/footballs-next-generation-the-african-talent-factory-1549316aecaa) 
+
+Mbaye, L., Okara, A. Climate change, natural disasters, and migration. IZA World of Labor 2023: 346 doi: 10.15185/izawol.346.v2 
